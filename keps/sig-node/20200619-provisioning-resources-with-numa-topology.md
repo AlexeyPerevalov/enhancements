@@ -86,12 +86,33 @@ system allocatable resources.
 
 ### Design based on CRI
 
-TODO here should be description of daemonset and how it
-interacts with container runtime daemon through CRI
+The containerStatusResponse returned as a response to the ContainerStatus rpc contains `Info` field which is used by the container runtime for capturing ContainerInfo.
+```go
+message ContainerStatusResponse {
+      ContainerStatus status = 1;
+      map<string, string> info = 2;
+}
+```
 
-collects resources consumed by pod's containers.
-And drawbacks of this approach related to information in non
-specific field
+Containerd has been used as the container runtime in the initial investigation. The internal container object info
+[here](https://github.com/containerd/cri/blob/master/pkg/server/container_status.go#L130)
+
+The Daemon set is responsible for the following:
+
+- Parsing the info field to obtain container resource information
+- Identifying NUMA nodes of the allocated resources
+- Identifying total number of resources allocated on a NUMA node basis
+- Detecting Node resource capacity on a NUMA node basis
+- Updating the CRD instance per node indicating available resources on NUMA nodes, which is referred to the scheduler
+
+
+#### Drawbacks
+
+The content of the `info` field is free form, unregulated by the API contract. So, CRI-compliant container runtime engines are not required to add any configuration-specific information, like for example cpu allocation, here. In case of containerd container runtime, the Linux Container Configuration is added in the `info` map depending on the verbosity setting of the container runtime engine.
+
+There is currently work going on in the community as part of the the Vertical Pod Autoscaling feature to update the ContainerStatus field to report back containerResources
+[KEP](https://github.com/kubernetes/enhancements/blob/master/keps/sig-node/20191025-kubelet-container-resources-cri-api-changes.md).
+
 
 ### Design based on podresources interface of the kubelet
 
@@ -127,17 +148,17 @@ Available resources with topology of the node should be stored in CRD. Format of
 ```go
 // NodeResourceTopology is a specification for a Foo resource
 type NodeResourceTopology struct {
-    metav1.TypeMeta   `json:",inline"`
-    metav1.ObjectMeta `json:"metadata,omitempty"`
+       metav1.TypeMeta   `json:",inline"`
+       metav1.ObjectMeta `json:"metadata,omitempty"`
 
-    TopologyPolicy string
-    Nodes   []NUMANodeResource   `json:"nodes"`
+       TopologyPolicy string
+       Nodes   []NUMANodeResource   `json:"nodes"`
 }
 
 // NUMANodeResource is the spec for a NodeResourceTopology resource
 type NUMANodeResource struct {
-    NUMAID int
-    Resources v1.ResourceList
+       NUMAID int
+       Resources v1.ResourceList
 }
 ```
 
