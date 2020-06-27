@@ -18,7 +18,7 @@ last-updated: 2020-06-19
 status: implementable
 see-also:
   - "/keps/sig-scheduling/20200612-deducted-topology-manager.md"
-
+---
 
 # Exposure Node Resources With NUMA Topology Information
 
