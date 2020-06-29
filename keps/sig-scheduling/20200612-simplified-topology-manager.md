@@ -2,6 +2,7 @@
 title: Simplified version of TopologyManager in kube-scheduler
 authors:
   - "@AlexeyPerevalov"
+  - "@swatisehgal"
 owning-sig: sig-scheduling
 participating-sigs:
 reviewers:
@@ -26,10 +27,11 @@ superseded-by:
   - [Goals](#goals)
   - [Non-Goals](#non-goals)
 - [Proposal](#Proposal)
-  - [Topology format] (#topology-format)
-  - [Plugin implementation details] (#plugin-implementation-details)
-    - [Topology information in NodeInfo] (#topology-information-in-nodeinfo)
-    - [Description of the Algorithm] (#description-of-the-algorithm)
+  - [Topology format](#topology-format)
+  - [Plugin implementation details](#plugin-implementation-details)
+    - [Topology information in NodeInfo](#topology-information-in-nodeinfo)
+    - [Description of the Algorithm](#description-of-the-algorithm)
+  - [Accessing NodeResourceTopology CRD](#accessing-nodeResourceTopology-crd)
 - [Use cases](#use-cases)
 - [Test plans](#test-plans)
 - [Graduation criteria](#graduation-criteria)
@@ -137,6 +139,43 @@ for _, container := range containers {
        }
 }
 ```
+## Accessing NodeResourceTopology CRD
+
+In order to allow the scheduler (deployed as a pod) to access NodeResourceTopology CRD instances, ClusterRole and ClusterRoleBinding would have to be configured as below:
+
+``` yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: noderesourcetopology-handler
+rules:
+- apiGroups: ["k8s.cncf.io"]
+  resources: ["noderesourcetopologies"]
+  verbs: ["*"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: handle-noderesourcetopology
+subjects:
+- kind: ServiceAccount
+  name: noderesourcetopology-account
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: noderesourcetopology-handler
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: noderesourcetopology-account
+```
+
+`serviceAccountName: noderesourcetopology-account` would have to be added to the manifest file of the scheduler deployment file.
 
 # Use cases
 
